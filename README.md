@@ -9,4 +9,6 @@ An opendir copy written in pure c using the winapi
 > #else
 > // Linux/MacOS/OpenBSD
 > #endif
- ```
+> ```
+- create new thread for every client
+
