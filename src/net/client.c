@@ -27,8 +27,6 @@ void get_mode_str(string* str, struct stat* fstat) {
     string_append(str, "\0", 1);
 }
 
-// FIXME: THERE IS SOME STUPID FUCKING SEGFAULT SOMEWHERE IN THE FOLLOWING FUNCTION AT THE DIRECTORY PART
-
 void handle_directory(socket_info* si, char* f);
 
 extern int should_exit;
@@ -42,6 +40,14 @@ void handle_client(socket_info* si) {
     recv_result = recv(si->sock, buf, buf_len, 0);
     if (recv_result > 0) {
         sock_info("[%d] > bytes received: %d", si->id, recv_result);
+
+        if (strncmp(buf, "GET", 3) != 0) {
+            warn("[%d] > request is not a GET request", si->id);
+            // warn("[%d] > buf: %s", si->id, buf);
+            // TODO: maybe handle POST requests and others
+            send_404(si);
+            goto cleanup;
+        }
 
         // GET /file.html ...
         char* f = buf + 5;
