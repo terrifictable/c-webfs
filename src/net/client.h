@@ -8,6 +8,8 @@
 #include <winsock2.h>
 #include <windows.h>
 
+#include "http/builder.h"
+#include "http/header.h"
 #include "util/string.h"
 #include "sockinfo.h"
 #include "common.h"

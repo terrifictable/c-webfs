@@ -31,10 +31,8 @@ void handle_directory(socket_info* si, char* f);
 
 extern int should_exit;
 void handle_client(socket_info* si) {
-    const int buf_len = 1024,
-             fbuf_len = 64;
-    char buf[buf_len],
-        fbuf[fbuf_len];
+    const int buf_len = 1024;
+    char buf[buf_len];
     int recv_result, send_result;
 
     recv_result = recv(si->sock, buf, buf_len, 0);
@@ -49,10 +47,14 @@ void handle_client(socket_info* si) {
             goto cleanup;
         }
 
+
         // GET /file.html ...
         char* f = buf + 5;
         *strchr(f, ' ') = 0;
-        *strchr(f, '?') = 0; // remove query string
+        char* p = strchr(f, '?');
+        if (p != NULL) {
+            *p = 0; // remove query string
+        }
  
         char last_c = *(f+strlen(f)-1);
         if (last_c == '/') {
@@ -68,22 +70,36 @@ void handle_client(socket_info* si) {
             goto cleanup;
         }
 
-        string fstr = string_new(fbuf_len+1);
-        while (fgets(fbuf, fbuf_len, fptr)) {
-            string_appends(&fstr, fbuf);
+        const int fbuf_len = 1024;
+        char* fbuf = calloc(fbuf_len, sizeof(char));
+
+        string fstr = string_new();
+        while (fread(fbuf, sizeof(char), fbuf_len, fptr)) {
+            string_appendf(&fstr, "%s", fbuf);
             memset(fbuf, 0, fbuf_len);
         }
         fclose(fptr);
+        free(fbuf);
 
-        send_result = send(si->sock, fstr.str, fstr.len, 0);
+
+        header headers[] = {
+            header_new(string_news("Content-Type"), string_news("text/plain")),
+            header_new(string_news("Server"), string_news("c-webfs")),
+        };
+
+        string response = build_response(HTTP_1_0, STATUS_OK, headers, sizeof(headers)/sizeof(*headers), &fstr);
+
+        headers_free(headers, sizeof(headers)/sizeof(*headers));
+
+        send_result = send(si->sock, response.str, response.len, 0);
+        memset(buf, 0, buf_len);
+        string_free(&response);
+        string_free(&fstr);
+
         if (send_result == SOCKET_ERROR) {
             err("[%d] > failed to send '%s', error: %d", si->id, buf, WSAGetLastError());
             goto cleanup;
         }
-
-        memset(fbuf, 0, fbuf_len);
-        memset(buf, 0, buf_len);
-        string_free(&fstr);
     } else if (recv_result == 0 || WSAGetLastError() == 10054) { // magic number: winsock error code for "remote forcfully closed connection"
         sock_info("[%d] > Closing Connection", si->id);
     } else {
@@ -115,19 +131,21 @@ void handle_directory(socket_info* si, char* f) {
 
     sock_info("[%d] > directory requested: '%s'", si->id, f);;
 
-    string listing = string_new(0);
-    string_appends(&listing, "<head>");
-    string_appends(&listing, "<meta name=\"color-scheme\" content=\"dark\">");
-    string_appends(&listing, "<style>\n");
-    string_appends(&listing, "body {font-family: monospace;}\n");
-    string_appends(&listing, "table td {padding: 0 0.4em;}\n");
-    string_appends(&listing, "a {color:#56c8ff}\n");
-    string_appends(&listing, "a:hover {color:lightblue}\n");
-    string_appends(&listing, "tr:hover td {background-color: #333}\n");
-    string_appends(&listing, "#name{width:200px}\n");
-    string_appends(&listing, "</style>");
-    string_appends(&listing, "</head>");
-    string_appends(&listing, "<body>");
+    string body = string_new(0);
+    string_appends(&body, 
+        "<head>"
+        "<meta name=\"color-scheme\" content=\"dark\">"
+        "<style>\n"
+        "body {font-family: monospace;}\n"
+        "table td {padding: 0 0.4em;}\n"
+        "a {color:#56c8ff}\n"
+        "a:hover {color:lightblue}\n"
+        "tr:hover td {background-color: #333}\n"
+        "#name{width:200px}\n"
+        "</style>"
+        "</head>"
+        "<body>"
+    );
 
     char* dir_name = calloc((strlen(f) + 2), sizeof(char));
     sprintf_s(dir_name, strlen(f)+2, ".%s", f);
@@ -138,8 +156,20 @@ void handle_directory(socket_info* si, char* f) {
         goto cleanup;
     }
 
-    string_appendf(&listing, "<h3>Index of %s</h3>", f);
-    string_appendf(&listing, "<table><thead><tr><td id=\"mode\"><b>Mode</b></td><td id=\"name\"><b>Name</b></td><td id=\"size\"><b>Size</b></td></tr></thead><tbody>");
+    string_appendf(&body, 
+        "<h3>Index of %s</h3>"
+        "<table>"
+            "<thead>"
+                "<tr>"
+                    "<td id=\"mode\"><b>Mode</b></td>"
+                    "<td id=\"name\"><b>Name</b></td>"
+                    "<td id=\"size\"><b>Size</b></td>"
+                "</tr>"
+            "</thead>"
+        "<tbody>",
+        f
+    );
+    
 
     struct dirent *e;
     while ((e = readdir(d)) != NULL) {
@@ -148,31 +178,61 @@ void handle_directory(socket_info* si, char* f) {
         sprintf(full_path, "%s%s", dir_name, e->d_name);
         stat(full_path, &fstat);
 
-        string modestr = string_new(0);
+        string modestr = string_new();
         get_mode_str(&modestr, &fstat);
         
         if (S_ISDIR(fstat.st_mode)) {
             if ((strcmp(f, "/") == 0 && strcmp(e->d_name, "..") == 0) || strcmp(e->d_name, ".") == 0) { // if not root dir
             } else {
-                string_appendf(&listing, "<tr><td>%s</td><td><a href=\"%s%s/\">%s/</a></td><td align=\"right\"></td></tr>", modestr.str, f, e->d_name, e->d_name);
+                string_appendf(&body, 
+                    "<tr>"
+                        "<td>%s</td>"
+                        "<td><a href=\"%s%s/\">%s/</a></td>"
+                        "<td align=\"right\"></td>"
+                    "</tr>", 
+                    modestr.str, 
+                    f, 
+                    e->d_name, 
+                    e->d_name
+                );
             }
         } else {
-            string_appendf(&listing, "<tr><td>%s</td><td><a href=\"%s%s\">%s</a></td><td align=\"right\">%ld B</td></tr>", modestr.str, f, e->d_name, e->d_name, fstat.st_size);
+            string_appendf(&body, 
+                "<tr>"
+                    "<td>%s</td>"
+                    "<td><a href=\"%s%s\">%s</a></td>"
+                    "<td align=\"right\">%d</td>"
+                "</tr>", 
+                modestr.str, 
+                f, 
+                e->d_name, 
+                e->d_name,
+                fstat.st_size
+            );
         }
         string_free(&modestr);
 
         free(full_path);
     }
-    string_appends(&listing, "</tbody></table></body>");
-
+    string_appends(&body, "</tbody></table></body>");
     closedir(d);
 
-    int send_result = send(si->sock, listing.str, listing.len, 0);
+
+    header headers[] = {
+        header_new(string_news("Content-Type"), string_news("text/html")),
+        header_new(string_news("Server"), string_news("c-webfs")),
+    };
+
+    string response = build_response(HTTP_1_0, STATUS_OK, headers, sizeof(headers)/sizeof(*headers), &body);
+    headers_free(headers, sizeof(headers)/sizeof(*headers));
+
+    int send_result = send(si->sock, response.str, response.len, 0);
+    string_free(&response);
     if (send_result == SOCKET_ERROR) {
         err("[%d] > failed to send '%s', error: %d", si->id, _404, WSAGetLastError());
     }
 
 cleanup:
     free(dir_name);
-    string_free(&listing);
+    string_free(&body);
 }
