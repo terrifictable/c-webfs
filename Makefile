@@ -7,7 +7,7 @@ LD      := ld
 LDFLAGS := 
 
 srcdir := src
-src    := $(wildcard $(srcdir)/*.c $(srcdir)/*/*.c $(srcdir)/*/*/*.c)
+src    := $(wildcard $(srcdir)/*.c $(srcdir)/*/*.c $(srcdir)/*/*/*.c $(srcdir)/*/*/*/*.c)
 obj    := $(src:%.c=%.o)
 
 bin := bin

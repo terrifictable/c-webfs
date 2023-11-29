@@ -2,9 +2,18 @@
 
 #include "common.h"
 
-string string_new(int len) {
+string string_new() {
     string str = STRING_INIT();
-    str.str = calloc(len, sizeof(char));
+    str.str = NULL;
+    str.len = 0;
+    return str;
+}
+
+string string_news(char* s) {
+    string str = STRING_INIT();
+    str.str = calloc(strlen(s) + 1, sizeof(char));
+    memcpy(str.str, s, strlen(s));
+    str.len = strlen(s)+1;
     return str;
 }
 

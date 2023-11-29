@@ -13,7 +13,8 @@ typedef struct _string {
 
 #define STRING_INIT() { NULL, 0 }
 
-string string_new(int length);
+string string_new();
+string string_news(char* s);
 void string_append(string *str, char* s, int len);
 void string_appends(string *str, char* s);
 void string_appendf(string *str, char* fmt, ...);
