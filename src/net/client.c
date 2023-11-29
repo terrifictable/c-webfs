@@ -52,7 +52,8 @@ void handle_client(socket_info* si) {
         // GET /file.html ...
         char* f = buf + 5;
         *strchr(f, ' ') = 0;
-
+        *strchr(f, '?') = 0; // remove query string
+ 
         char last_c = *(f+strlen(f)-1);
         if (last_c == '/') {
             handle_directory(si, f);
