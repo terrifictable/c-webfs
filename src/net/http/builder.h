@@ -2,6 +2,7 @@
 
 #include "../../common.h"
 #include "../../util/string.h"
+#include "../sockinfo.h"
 #include "header.h"
 
 // typedef struct _response {
@@ -36,4 +37,7 @@ typedef enum _http_status_e {
 const char* http_version_to_string(http_version_e http);
 const char* http_status_to_string(http_status_e status);
 
-string build_response(http_version_e http, http_status_e status, header* headers, size_t header_count, string* body);
+string build_response(http_version_e http, http_status_e status, header* headers, size_t header_count, string body);
+
+extern const char* _404;
+void send_404(socket_info* si, header* headers, size_t header_count);

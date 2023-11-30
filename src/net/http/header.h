@@ -1,6 +1,5 @@
 #pragma once
 
-/* wtf kinda shit is this vscode erroring when i use common.h and util/string.h */
 #include "../../common.h"
 #include "../../util/string.h"
 

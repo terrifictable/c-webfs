@@ -1,17 +1,36 @@
 #include "builder.h"
 
-string build_response(http_version_e http, http_status_e status, header* headers, size_t header_count, string* body) {
+const char* _404 = "HTTP/1.0 404 Not Found\r\n\r\n404 Not Found";
+
+string build_response(http_version_e http, http_status_e status, header* headers, size_t header_count, string body) {
     string response = string_new();
     
     string_appendf(&response, "%s %d %s\r\n", http_version_to_string(http), status, http_status_to_string(status));
-    string header_str = headers_to_string(headers, header_count);
-    string_appends(&response, header_str.str);
+    if (headers != NULL && header_count > 0) {
+        string header_str = headers_to_string(headers, header_count);
+        string_appends(&response, header_str.str);
+    }
     string_appends(&response, "\r\n");
 
-    string_append(&response, body->str, body->len-4); // idfk why the length is 4 more than it should be
-    // string_append(&response, "\0", 1);
+    if (body.len > 0) {
+        string_append(&response, body.str, body.len);
+    } else {
+        string_appendf(&response, "%s\r\n", http_status_to_string(status));
+    }
 
     return response;
+}
+
+void send_404(socket_info* si, header* headers, size_t header_count) {
+    string body = string_news("404 Not Found");
+    string response = build_response(HTTP_1_0, STATUS_NOT_FOUND, headers, header_count, body);
+    
+    int send_result = send(si->sock, response.str, response.len, 0);
+    string_free(&body);
+    string_free(&response);
+    if (send_result == SOCKET_ERROR) {
+        err("[%d] > failed to send 404, error: %d", si->id, WSAGetLastError());
+    }
 }
 
 const char* http_version_to_string(http_version_e http) {
