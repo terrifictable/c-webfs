@@ -11,9 +11,9 @@ string string_new() {
 
 string string_news(char* s) {
     string str = STRING_INIT();
-    str.str = calloc(strlen(s) + 1, sizeof(char));
+    str.str = calloc(strlen(s), sizeof(char));
     memcpy(str.str, s, strlen(s));
-    str.len = strlen(s)+1;
+    str.len = strlen(s);
     return str;
 }
 
