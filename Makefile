@@ -1,6 +1,6 @@
 CC := gcc
 INCLUDE := -Iinclude/ -Isrc/
-LIBS := -lws2_32
+LIBS := -lws2_32 -lpthread
 FLAGS := -std=c17 -g -Wall -Wextra -Werror $(INCLUDE)
 
 LD      := ld

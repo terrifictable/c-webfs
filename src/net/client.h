@@ -28,6 +28,6 @@ typedef struct _client_result {
 } client_result_t;
 
 
-client_result_t accept_client(SOCKET sock);
-void handle_client(socket_info* si);
+void accept_client(SOCKET sock, client_result_t* out);
+void *handle_client(void* vp_si /* socket_info* */);
 

@@ -25,7 +25,9 @@ void get_mode_str(string* str, struct stat* fstat) {
 void handle_directory(socket_info* si, char* f);
 
 extern int should_exit;
-void handle_client(socket_info* si) {
+void* handle_client(void* vp_si) {
+    socket_info* si = (socket_info*) vp_si;
+
     const int buf_len = 1024;
     char buf[buf_len];
     int recv_result;
@@ -71,21 +73,16 @@ void handle_client(socket_info* si) {
 cleanup:
     shutdown(si->sock, SD_BOTH);
     closesocket(si->sock);
+
+    return NULL;
 }
 
-client_result_t accept_client(SOCKET sock) {
-    client_result_t res = { 
-        .err = CLIENT_OK, 
-        .msg = NULL, 
-        .sock = 0 
-    };
-
-    res.sock = accept(sock, NULL, NULL);
-    if (res.sock == INVALID_SOCKET) {
-        res.err = CLIENT_CONNECTION_FAILED;
-        sprintf(res.msg, "failed to accept connection, error: %d", WSAGetLastError());
+void accept_client(SOCKET sock, client_result_t *out) {
+    out->sock = accept(sock, NULL, NULL);
+    if (out->sock == INVALID_SOCKET) {
+        out->err = CLIENT_CONNECTION_FAILED;
+        sprintf(out->msg, "failed to accept connection, error: %d", WSAGetLastError());
     }
-    return res;
 }
 
 void get_request(socket_info* si, char* req_buf, int req_buf_len) {

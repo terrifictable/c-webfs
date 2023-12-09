@@ -2,7 +2,8 @@
 An opendir copy written in pure c using the winapi
 
 ## ToDo
-- Add linux support by using 
+- [X] create new thread for every client
+- [ ] Add linux support by using 
 > ``` c
 > #if defined(_WIN32) || defined(_WIN64)
 > // WINDOWS
@@ -10,5 +11,6 @@ An opendir copy written in pure c using the winapi
 > // Linux/MacOS/OpenBSD
 > #endif
 > ```
-- create new thread for every client
+- [ ] fix how sockets are handled to make multiple requests at the same time possible
+- [ ] parse headers
 

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <winsock2.h>
 #include <windows.h>
@@ -9,7 +10,6 @@
 #include "net/socket.h"
 #include "net/sockinfo.h"
 #include "util/config.h"
-#include "util/threads.h"
 
 
 #define MAX_CLIENTS 50
@@ -35,22 +35,26 @@ int main(int argc, char* argv[]) {
 
     int cid = 0;
     while (should_exit == 0) {
-        client_result_t client = accept_client(listener.sock); 
+        client_result_t client;
+        accept_client(listener.sock, &client); 
         if (client.err != CLIENT_OK) {
             err("%s", client.msg);
             continue;
         }
         cid++;
-        sock_info("New connection (%d, %p)", cid, &client.sock);
+        sock_info("New connection (%d, %p)", cid, client);
 
+        pthread_t thread;
         socket_info si = {.sock = client.sock, .id = cid};
-        handle_client(&si);
+        pthread_create(&thread, NULL, handle_client, (void*)&si);
+        pthread_detach(thread);
     }
 
 
 cleanup:
     info("Exiting");
     free(conf);
+    pthread_exit(NULL);
     destroy_socket(listener);
 
     return retc;
